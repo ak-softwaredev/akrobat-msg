@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -23,26 +24,25 @@ type OutputJSON struct {
 	Token    string `json:"auth_token"`
 }
 
-type AuthHandler interface {
-	AuthRegister(c *gin.Context)
-	AuthLogin(c *gin.Context)
-	AuthLogout(c *gin.Context)
-	// AuthRefresh(c *gin.Context)
+type AuthService interface {
+	Register(ctx context.Context, username, password string) (*service.AuthSuccessResult, error)
+	Login(ctx context.Context, username, password string) (*service.AuthSuccessResult, error)
+	Logout(ctx context.Context, token string) error
 }
 
 type authHandler struct {
-	auth service.AuthService
+	auth AuthService
 }
 
 func NewAuthHandler(
-	auth service.AuthService,
-) AuthHandler {
+	auth AuthService,
+) *authHandler {
 	return &authHandler{
 		auth: auth,
 	}
 }
 
-func (a *authHandler) AuthRegister(c *gin.Context) {
+func (h *authHandler) AuthRegister(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(
 		c.Writer,
 		c.Request.Body,
@@ -75,8 +75,15 @@ func (a *authHandler) AuthRegister(c *gin.Context) {
 		return
 	}
 
-	result, err := a.auth.Register(c.Request.Context(), body.Username, body.Password)
+	result, err := h.auth.Register(c.Request.Context(), body.Username, body.Password)
 	if err != nil {
+		if errors.Is(err, service.ErrUsernameTaken) {
+			c.JSON(
+				http.StatusConflict,
+				gin.H{"error": gin.H{"message": body.Username + " is taken"}},
+			)
+			return
+		}
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": gin.H{"message": "Internal Server Error"}},
@@ -95,7 +102,7 @@ func (a *authHandler) AuthRegister(c *gin.Context) {
 	)
 }
 
-func (a *authHandler) AuthLogin(c *gin.Context) {
+func (h *authHandler) AuthLogin(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(
 		c.Writer,
 		c.Request.Body,
@@ -121,7 +128,7 @@ func (a *authHandler) AuthLogin(c *gin.Context) {
 		return
 	}
 
-	result, err := a.auth.Login(c.Request.Context(), body.Username, body.Password)
+	result, err := h.auth.Login(c.Request.Context(), body.Username, body.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			c.JSON(
@@ -148,11 +155,11 @@ func (a *authHandler) AuthLogin(c *gin.Context) {
 	)
 }
 
-func (a *authHandler) AuthLogout(c *gin.Context) {
+func (h *authHandler) AuthLogout(c *gin.Context) {
 	token := c.GetHeader("Authorization")
 	token = strings.TrimPrefix(token, "Bearer ")
 
-	if err := a.auth.Logout(c.Request.Context(), token); err != nil {
+	if err := h.auth.Logout(c.Request.Context(), token); err != nil {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{"errors": gin.H{"message": "Invalid token"}},

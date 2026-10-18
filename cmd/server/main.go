@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/database"
@@ -31,23 +30,21 @@ func main() {
 	}
 	defer pool.Close()
 
-	UsersRepository := repository.NewUsersRepository(pool)
-	SessionRepository := repository.NewSessionRepository(pool)
-	AuthService := service.NewAuthService(UsersRepository, SessionRepository)
-	AuthHandler := handler.NewAuthHandler(AuthService)
+	usersRepository := repository.NewUsersRepository(pool)
+	sessionRepository := repository.NewSessionRepository(pool)
+	authService := service.NewAuthService(usersRepository, sessionRepository)
+	authHandler := handler.NewAuthHandler(authService)
+	healthHandler := handler.NewHealthHandler(pool)
 
-	r.POST("/api/v1/auth/register", AuthHandler.AuthRegister)
-	r.POST("/api/v1/auth/login", AuthHandler.AuthLogin)
-	r.POST("/api/v1/auth/logout", AuthHandler.AuthLogout)
+	r.GET("/health/live", healthHandler.HealthLive)
+	r.GET("/health/ready", healthHandler.HealthReady)
+
+	r.POST("/api/v1/auth/register", authHandler.AuthRegister)
+	r.POST("/api/v1/auth/login", authHandler.AuthLogin)
+	r.POST("/api/v1/auth/logout", authHandler.AuthLogout)
 
 	api := r.Group("/api")
-	api.Use(middleware.Auth(AuthService))
-
-	r.GET("/health/live", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
+	api.Use(middleware.Auth(authService))
 
 	port := os.Getenv("PORT")
 	if port == "" {

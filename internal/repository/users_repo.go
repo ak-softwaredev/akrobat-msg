@@ -7,28 +7,19 @@ import (
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrUserNotFound = errors.New("user not found")
+var ErrUserExists = errors.New("user already exists")
 var ErrInvalidUserField = errors.New("invalid user field")
-
-type UsersRepository interface {
-	Register(ctx context.Context, username, passwordHash string) (*model.User, error)
-	GetWithCredentialsByUsername(ctx context.Context, username string) (*model.User, error)
-	GetByUsername(ctx context.Context, username string) (*model.User, error)
-	GetByID(ctx context.Context, id int64) (*model.User, error)
-	UpdateUsername(ctx context.Context, id int64, username string) (*model.User, error)
-	UpdatePassword(ctx context.Context, id int64, passwordHash string) (*model.User, error)
-	UpdateBio(ctx context.Context, id int64, bio string) (*model.User, error)
-	Delete(ctx context.Context, id int64) error
-}
 
 type pgUsersRepo struct {
 	pool *pgxpool.Pool
 }
 
-func NewUsersRepository(pool *pgxpool.Pool) UsersRepository {
+func NewUsersRepository(pool *pgxpool.Pool) *pgUsersRepo {
 	return &pgUsersRepo{
 		pool: pool,
 	}
@@ -40,13 +31,29 @@ func (r *pgUsersRepo) Register(
 	passwordHash string,
 ) (*model.User, error) {
 	var u model.User
-	err := r.pool.QueryRow(ctx,
+
+	_, err := r.GetByUsername(ctx, username)
+	if err == nil {
+		return nil, ErrUserExists
+	}
+	if !errors.Is(err, ErrUserNotFound) {
+		return nil, fmt.Errorf("register user (pre-check): %w", err)
+	}
+
+	err = r.pool.QueryRow(ctx,
 		`INSERT INTO users (username, password_hash)
 		VALUES ($1, $2)
 		RETURNING id, username, created_at, updated_at`,
 		username, passwordHash,
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "users_username_key" {
+			return nil, ErrUserExists
+		}
 		return nil, fmt.Errorf("register user: %w", err)
 	}
 	return &u, nil
@@ -78,14 +85,14 @@ func (r *pgUsersRepo) GetByUsername(
 ) (*model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT (id, username, created_at, updated_at)
+		`SELECT id, username, created_at, updated_at
 		FROM users
 		WHERE username = $1`,
 		username,
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("get user: %w", ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -98,14 +105,14 @@ func (r *pgUsersRepo) GetByID(
 ) (*model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT (id, username, created_at, updated_at) 
+		`SELECT id, username, created_at, updated_at 
 		FROM users
 		WHERE id = $1`,
 		id,
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("get user: %w", ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -128,7 +135,7 @@ func (r *pgUsersRepo) UpdateUsername(
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update user: %w", ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("update user: %w", err)
 	}
@@ -152,7 +159,7 @@ func (r *pgUsersRepo) UpdatePassword(
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update user: %w", ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("update user: %w", err)
 	}
@@ -176,7 +183,7 @@ func (r *pgUsersRepo) UpdateBio(
 	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update user: %w", ErrUserNotFound)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("update user: %w", err)
 	}
@@ -197,7 +204,7 @@ func (r *pgUsersRepo) Delete(
 	}
 
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("delete user: %w", ErrUserNotFound)
+		return ErrUserNotFound
 	}
 
 	return nil

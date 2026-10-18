@@ -1,1 +1,5 @@
--- idk do something later
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS chats;
+DROP TABLE IF EXISTS chat_members;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS sessions;

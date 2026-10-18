@@ -12,18 +12,11 @@ import (
 
 var ErrMessageNotFound = errors.New("message not found")
 
-type MessagesRepository interface {
-	GetChatMessages(ctx context.Context, chatID int64, beforeID int64, limit int) ([]model.Message, error)
-	CreateMessage(ctx context.Context, chatID int64, userID int64, content string) (*model.Message, error)
-	UpdateMessage(ctx context.Context, chatID int64, messageID int64, userID int64, content string) (*model.Message, error)
-	DeleteMessage(ctx context.Context, chatID int64, messageID int64, userID int64) error
-}
-
 type pgMessagesRepo struct {
 	pool *pgxpool.Pool
 }
 
-func NewMessagesRepository(pool *pgxpool.Pool) MessagesRepository {
+func NewMessagesRepository(pool *pgxpool.Pool) *pgMessagesRepo {
 	return &pgMessagesRepo{
 		pool: pool,
 	}

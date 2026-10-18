@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -11,7 +12,11 @@ import (
 
 const UserIDKey = "userID"
 
-func Auth(s service.AuthService) gin.HandlerFunc {
+type AuthService interface {
+	Authenticate(ctx context.Context, token string) (int64, error)
+}
+
+func Auth(s AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 

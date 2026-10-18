@@ -19,20 +19,11 @@ type CreateSessionParams struct {
 	ExpiresAt time.Time
 }
 
-type SessionRepository interface {
-	Create(ctx context.Context, p CreateSessionParams) (*model.Session, error)
-	GetByHash(ctx context.Context, tokenHash string) (*model.Session, error)
-	GetByUserID(ctx context.Context, id int64) ([]model.Session, error)
-	DeleteByHash(ctx context.Context, tokenHash string) error
-	DeleteByUserID(ctx context.Context, id int64) error
-	DeleteExpired(ctx context.Context) error
-}
-
 type pgSessionRepo struct {
 	pool *pgxpool.Pool
 }
 
-func NewSessionRepository(pool *pgxpool.Pool) SessionRepository {
+func NewSessionRepository(pool *pgxpool.Pool) *pgSessionRepo {
 	return &pgSessionRepo{
 		pool: pool,
 	}

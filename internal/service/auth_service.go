@@ -15,28 +15,31 @@ import (
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
+var ErrUsernameTaken = errors.New("username taken")
 
 type AuthSuccessResult struct {
 	Token   string         `json:"token"`
 	Session *model.Session `json:"session"`
 }
 
-type AuthService interface {
-	Register(ctx context.Context, username, password string) (*AuthSuccessResult, error)
-	Login(ctx context.Context, username, password string) (*AuthSuccessResult, error)
-	Logout(ctx context.Context, token string) error
-	Authenticate(ctx context.Context, token string) (int64, error)
+type SessionRepository interface {
+	Create(ctx context.Context, p repository.CreateSessionParams) (*model.Session, error)
+	GetByHash(ctx context.Context, tokenHash string) (*model.Session, error)
+	GetByUserID(ctx context.Context, id int64) ([]model.Session, error)
+	DeleteByHash(ctx context.Context, tokenHash string) error
+	DeleteByUserID(ctx context.Context, id int64) error
+	DeleteExpired(ctx context.Context) error
 }
 
 type authService struct {
-	users    repository.UsersRepository
-	sessions repository.SessionRepository
+	users    UsersRepository
+	sessions SessionRepository
 }
 
 func NewAuthService(
-	users repository.UsersRepository,
-	sessions repository.SessionRepository,
-) AuthService {
+	users UsersRepository,
+	sessions SessionRepository,
+) *authService {
 	return &authService{
 		users:    users,
 		sessions: sessions,
@@ -61,6 +64,9 @@ func (s *authService) Register(
 		string(passwordHash),
 	)
 	if err != nil {
+		if errors.Is(err, repository.ErrUserExists) {
+			return nil, ErrUsernameTaken
+		}
 		return nil, fmt.Errorf("auth register: %w", err)
 	}
 
