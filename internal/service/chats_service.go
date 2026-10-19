@@ -16,3 +16,15 @@ type ChatsRepository interface {
 	AddMember(ctx context.Context, chatID int64, userID int64) error
 	RemoveMember(ctx context.Context, chatID int64, userID int64) error
 }
+
+type chatsService struct {
+	chats ChatsRepository
+}
+
+func NewChatsService(
+	chats ChatsRepository,
+) *chatsService {
+	return &chatsService{
+		chats: chats,
+	}
+}

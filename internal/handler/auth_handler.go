@@ -3,9 +3,9 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/service"
 	"github.com/gin-gonic/gin"
@@ -58,25 +58,22 @@ func (h *authHandler) AuthRegister(c *gin.Context) {
 		return
 	}
 
-	usernameLength := utf8.RuneCountInString(body.Username)
-	if usernameLength < 3 || usernameLength > 20 {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "Username must be 3-20 characters long"}},
-		)
-		return
-	}
-	passwordLength := utf8.RuneCountInString(body.Password)
-	if passwordLength < 8 || passwordLength > 64 {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "Password must be 8-64 characters long"}},
-		)
-		return
-	}
-
 	result, err := h.auth.Register(c.Request.Context(), body.Username, body.Password)
 	if err != nil {
+		if errors.Is(err, service.ErrUsernameBadLength) {
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{"error": gin.H{"message": "Username must be 3-20 characters long"}},
+			)
+			return
+		}
+		if errors.Is(err, service.ErrPasswordBadLength) {
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{"error": gin.H{"message": "Password must be 8-64 characters long"}},
+			)
+			return
+		}
 		if errors.Is(err, service.ErrUsernameTaken) {
 			c.JSON(
 				http.StatusConflict,
@@ -84,6 +81,7 @@ func (h *authHandler) AuthRegister(c *gin.Context) {
 			)
 			return
 		}
+		log.Printf("[ERROR] auth register: %v", err)
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": gin.H{"message": "Internal Server Error"}},
@@ -118,18 +116,15 @@ func (h *authHandler) AuthLogin(c *gin.Context) {
 		return
 	}
 
-	uLen := utf8.RuneCountInString(body.Username)
-	pLen := utf8.RuneCountInString(body.Password)
-	if uLen < 3 || uLen > 20 || pLen < 8 || pLen > 64 {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "Invalid request body"}},
-		)
-		return
-	}
-
 	result, err := h.auth.Login(c.Request.Context(), body.Username, body.Password)
 	if err != nil {
+		if errors.Is(err, service.ErrUsernameBadLength) || errors.Is(err, service.ErrPasswordBadLength) {
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{"error": gin.H{"message": "Invalid request body"}},
+			)
+			return
+		}
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			c.JSON(
 				http.StatusUnauthorized,
@@ -137,6 +132,7 @@ func (h *authHandler) AuthLogin(c *gin.Context) {
 			)
 			return
 		}
+		log.Printf("[ERROR] auth login: %v", err)
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": gin.H{"message": "Internal Server Error"}},
@@ -167,8 +163,5 @@ func (h *authHandler) AuthLogout(c *gin.Context) {
 		return
 	}
 
-	c.JSON(
-		http.StatusAccepted,
-		gin.H{"message": "Logged out successfully", "status": "ok"},
-	)
+	c.Status(http.StatusNoContent)
 }

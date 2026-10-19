@@ -32,7 +32,9 @@ func main() {
 
 	usersRepository := repository.NewUsersRepository(pool)
 	sessionRepository := repository.NewSessionRepository(pool)
+	usersService := service.NewUsersService(usersRepository)
 	authService := service.NewAuthService(usersRepository, sessionRepository)
+	usersHandler := handler.NewUsersHandler(usersService)
 	authHandler := handler.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler(pool)
 
@@ -45,6 +47,11 @@ func main() {
 
 	api := r.Group("/api")
 	api.Use(middleware.Auth(authService))
+
+	api.GET("/v1/users/me", usersHandler.GetSelf)
+	api.GET("/v1/users/:id", usersHandler.GetByID)
+	api.PATCH("/v1/users/me", usersHandler.Update)
+	api.DELETE("/v1/users/me", usersHandler.Delete)
 
 	port := os.Getenv("PORT")
 	if port == "" {

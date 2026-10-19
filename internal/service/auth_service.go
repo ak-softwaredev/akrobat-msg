@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
+	"unicode/utf8"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/ak-softwaredev/akrobat-msg/internal/repository"
@@ -50,6 +52,10 @@ func (s *authService) Register(
 	ctx context.Context,
 	username, password string,
 ) (*AuthSuccessResult, error) {
+	if err := validateAuthInput(&username, &password); err != nil {
+		return nil, err
+	}
+
 	passwordHash, err := bcrypt.GenerateFromPassword(
 		[]byte(password),
 		bcrypt.DefaultCost,
@@ -81,6 +87,7 @@ func (s *authService) Register(
 		repository.CreateSessionParams{
 			TokenHash: tokenHash,
 			UserID:    user.ID,
+			ExpiresAt: time.Now().Add(time.Hour),
 		},
 	)
 	if err != nil {
@@ -97,6 +104,10 @@ func (s *authService) Login(
 	ctx context.Context,
 	username, password string,
 ) (*AuthSuccessResult, error) {
+	if err := validateAuthInput(&username, &password); err != nil {
+		return nil, err
+	}
+
 	user, err := s.users.GetWithCredentialsByUsername(
 		ctx,
 		username,
@@ -127,6 +138,7 @@ func (s *authService) Login(
 		repository.CreateSessionParams{
 			TokenHash: string(tokenHash),
 			UserID:    user.ID,
+			ExpiresAt: time.Now().Add(time.Hour),
 		},
 	)
 	if err != nil {
@@ -171,6 +183,24 @@ func (s *authService) Authenticate(
 	}
 
 	return session.UserID, nil
+}
+
+func validateAuthInput(username, password *string) error {
+	if username != nil {
+		usernameLength := utf8.RuneCountInString(*username)
+		if usernameLength < 3 || usernameLength > 20 {
+			return ErrUsernameBadLength
+		}
+	}
+
+	if password != nil {
+		passwordLength := utf8.RuneCountInString(*password)
+		if passwordLength < 8 || passwordLength > 64 {
+			return ErrPasswordBadLength
+		}
+	}
+
+	return nil
 }
 
 func generateToken(length int) (string, error) {

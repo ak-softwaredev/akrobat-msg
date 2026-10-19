@@ -65,11 +65,11 @@ func (r *pgUsersRepo) GetWithCredentialsByUsername(
 ) (*model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, password_hash, created_at, updated_at
+		`SELECT id, username, COALESCE(bio, ''), password_hash, created_at, updated_at
 		FROM users
 		WHERE username = $1`,
 		username,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("login user: %w", ErrUserNotFound)
@@ -85,11 +85,11 @@ func (r *pgUsersRepo) GetByUsername(
 ) (*model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, created_at, updated_at
+		`SELECT id, username, COALESCE(bio, ''), created_at, updated_at
 		FROM users
 		WHERE username = $1`,
 		username,
-	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -105,11 +105,11 @@ func (r *pgUsersRepo) GetByID(
 ) (*model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, created_at, updated_at 
+		`SELECT id, username, COALESCE(bio, ''), created_at, updated_at
 		FROM users
 		WHERE id = $1`,
 		id,
-	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -130,9 +130,9 @@ func (r *pgUsersRepo) UpdateUsername(
 		`UPDATE users
 		SET username = $1, updated_at = NOW()
 		WHERE id = $2
-		RETURNING id, username, created_at, updated_at`,
+		RETURNING id, username, COALESCE(bio, ''), created_at, updated_at`,
 		username, id,
-	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -154,9 +154,9 @@ func (r *pgUsersRepo) UpdatePassword(
 		`UPDATE users
 		SET password_hash = $1, updated_at = NOW()
 		WHERE id = $2
-		RETURNING id, username, created_at, updated_at`,
+		RETURNING id, username, COALESCE(bio, ''), created_at, updated_at`,
 		username, id,
-	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -178,9 +178,9 @@ func (r *pgUsersRepo) UpdateBio(
 		`UPDATE users
 		SET bio = $1, updated_at = NOW()
 		WHERE id = $2
-		RETURNING id, username, created_at, updated_at`,
+		RETURNING id, username, COALESCE(bio, ''), created_at, updated_at`,
 		bio, id,
-	).Scan(&u.ID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Bio, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
