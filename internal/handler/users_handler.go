@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -60,6 +61,9 @@ func (h *usersHandler) GetByID(c *gin.Context) {
 	stringID := c.Param("id")
 	id, err := strconv.ParseInt(stringID, 10, 0)
 	if err != nil || id < 0 {
+		if err != nil {
+			log.Printf("[ERROR] handler parse user id: %v", err)
+		}
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "invalid id"}},
@@ -97,6 +101,7 @@ func (h *usersHandler) Update(c *gin.Context) {
 
 	body := UpdateField{}
 	if err := c.ShouldBindJSON(&body); err != nil {
+		log.Printf("[ERROR] handler bind update user request: %v", err)
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid request body"}},

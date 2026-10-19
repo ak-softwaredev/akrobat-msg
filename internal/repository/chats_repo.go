@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -15,6 +16,10 @@ var ErrChatMemberNotFound = errors.New("chat member not found")
 
 type pgChatsRepo struct {
 	pool *pgxpool.Pool
+}
+
+type chatMemberQueryer interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 func NewChatsRepository(pool *pgxpool.Pool) *pgChatsRepo {
@@ -32,6 +37,7 @@ func (r *pgChatsRepo) CreateChat(
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
+		log.Printf("[ERROR] repository create chat: %v", err)
 		return nil, fmt.Errorf("create chat: %w", err)
 	}
 	defer tx.Rollback(ctx)
@@ -39,7 +45,7 @@ func (r *pgChatsRepo) CreateChat(
 	err = tx.QueryRow(ctx,
 		`INSERT INTO chats (name, created_by)
 		VALUES ($1, $2)
-		RETURNING id, name, description, created_by, created_at, updated_at`,
+		RETURNING id, name, COALESCE(description, ''), created_by, created_at, updated_at`,
 		name, userID,
 	).Scan(
 		&c.ID,
@@ -50,6 +56,7 @@ func (r *pgChatsRepo) CreateChat(
 		&c.UpdatedAt,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository create chat: %v", err)
 		return nil, fmt.Errorf("create chat: %w", err)
 	}
 
@@ -61,10 +68,17 @@ func (r *pgChatsRepo) CreateChat(
 		"owner",
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository create chat: %v", err)
+		return nil, fmt.Errorf("create chat: %w", err)
+	}
+	c.Members, err = getChatMembers(ctx, tx, c.ID)
+	if err != nil {
+		log.Printf("[ERROR] repository create chat: %v", err)
 		return nil, fmt.Errorf("create chat: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		log.Printf("[ERROR] repository create chat: %v", err)
 		return nil, fmt.Errorf("create chat: %w", err)
 	}
 
@@ -81,38 +95,55 @@ func (r *pgChatsRepo) GetUserChats(
 		`SELECT 
 			c.id, 
 			c.name, 
-			c.description, 
+			COALESCE(c.description, ''),
 			c.created_by, 
 			c.created_at, 
-			c.updated_at
+			c.updated_at,
+			cm.chat_id,
+			cm.user_id,
+			cm.role,
+			cm.joined_at
 		FROM chats AS c
+		JOIN chat_members AS user_members ON user_members.chat_id = c.id
 		JOIN chat_members AS cm ON cm.chat_id = c.id
-		WHERE cm.user_id = $1
-		ORDER BY c.updated_at DESC`,
+		WHERE user_members.user_id = $1
+		ORDER BY c.updated_at DESC, c.id, cm.user_id`,
 		userID,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository get chats: %v", err)
 		return nil, fmt.Errorf("get chats: %w", err)
 	}
 
-	var c model.Chat
+	defer rows.Close()
 
-	_, err = pgx.ForEachRow(
-		rows,
-		[]any{
+	for rows.Next() {
+		var c model.Chat
+		var member model.ChatMember
+		if err := rows.Scan(
 			&c.ID,
 			&c.Name,
 			&c.Description,
 			&c.CreatedBy,
 			&c.CreatedAt,
 			&c.UpdatedAt,
-		},
-		func() error {
+			&member.ChatID,
+			&member.UserID,
+			&member.Role,
+			&member.JoinedAt,
+		); err != nil {
+			log.Printf("[ERROR] repository get chats: %v", err)
+			return nil, fmt.Errorf("get chats: %w", err)
+		}
+
+		if len(chats) == 0 || chats[len(chats)-1].ID != c.ID {
+			c.Members = make([]model.ChatMember, 0)
 			chats = append(chats, c)
-			return nil
-		},
-	)
-	if err != nil {
+		}
+		chats[len(chats)-1].Members = append(chats[len(chats)-1].Members, member)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[ERROR] repository get chats: %v", err)
 		return nil, fmt.Errorf("get chats: %w", err)
 	}
 
@@ -129,7 +160,7 @@ func (r *pgChatsRepo) GetChatInfo(
 		`SELECT
 			id,
 			name,
-			description,
+			COALESCE(description, ''),
 			created_by,
 			created_at,
 			updated_at
@@ -146,12 +177,42 @@ func (r *pgChatsRepo) GetChatInfo(
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("get chat info: %w", ErrChatNotFound)
+			return nil, ErrChatNotFound
 		}
+		log.Printf("[ERROR] repository get chat info: %v", err)
+		return nil, fmt.Errorf("get chat info: %w", err)
+	}
+	c.Members, err = getChatMembers(ctx, r.pool, c.ID)
+	if err != nil {
+		log.Printf("[ERROR] repository get chat info: %v", err)
 		return nil, fmt.Errorf("get chat info: %w", err)
 	}
 
 	return &c, nil
+}
+
+func (r *pgChatsRepo) GetRoleInChat(
+	ctx context.Context,
+	chatID int64,
+	userID int64,
+) (*string, error) {
+	var member model.ChatMember
+
+	err := r.pool.QueryRow(ctx,
+		`SELECT role
+		FROM chat_members
+		WHERE chat_id = $1 AND user_id = $2`,
+		chatID, userID,
+	).Scan(&member.Role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrChatMemberNotFound
+		}
+		log.Printf("[ERROR] repository get role in chat: %v", err)
+		return nil, fmt.Errorf("get role in chat: %w", err)
+	}
+
+	return &member.Role, nil
 }
 
 func (r *pgChatsRepo) UpdateChatDescription(
@@ -167,7 +228,7 @@ func (r *pgChatsRepo) UpdateChatDescription(
 		RETURNING
 			id,
 			name,
-			description,
+			COALESCE(description, ''),
 			created_by,
 			created_at,
 			updated_at`,
@@ -182,8 +243,14 @@ func (r *pgChatsRepo) UpdateChatDescription(
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update chat: %w", ErrChatNotFound)
+			return nil, ErrChatNotFound
 		}
+		log.Printf("[ERROR] repository update chat description: %v", err)
+		return nil, fmt.Errorf("update chat: %w", err)
+	}
+	c.Members, err = getChatMembers(ctx, r.pool, c.ID)
+	if err != nil {
+		log.Printf("[ERROR] repository update chat description: %v", err)
 		return nil, fmt.Errorf("update chat: %w", err)
 	}
 	return &c, nil
@@ -202,7 +269,7 @@ func (r *pgChatsRepo) UpdateChatName(
 		RETURNING
 			id,
 			name,
-			name,
+			COALESCE(description, ''),
 			created_by,
 			created_at,
 			updated_at`,
@@ -217,11 +284,54 @@ func (r *pgChatsRepo) UpdateChatName(
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update chat: %w", ErrChatNotFound)
+			return nil, ErrChatNotFound
 		}
+		log.Printf("[ERROR] repository update chat name: %v", err)
+		return nil, fmt.Errorf("update chat: %w", err)
+	}
+	c.Members, err = getChatMembers(ctx, r.pool, c.ID)
+	if err != nil {
+		log.Printf("[ERROR] repository update chat name: %v", err)
 		return nil, fmt.Errorf("update chat: %w", err)
 	}
 	return &c, nil
+}
+
+func getChatMembers(
+	ctx context.Context,
+	queryer chatMemberQueryer,
+	chatID int64,
+) ([]model.ChatMember, error) {
+	members := make([]model.ChatMember, 0)
+	rows, err := queryer.Query(ctx,
+		`SELECT chat_id, user_id, role, joined_at
+		FROM chat_members
+		WHERE chat_id = $1
+		ORDER BY user_id`,
+		chatID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get chat members: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var member model.ChatMember
+		if err := rows.Scan(
+			&member.ChatID,
+			&member.UserID,
+			&member.Role,
+			&member.JoinedAt,
+		); err != nil {
+			return nil, fmt.Errorf("get chat members: %w", err)
+		}
+		members = append(members, member)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get chat members: %w", err)
+	}
+
+	return members, nil
 }
 
 func (r *pgChatsRepo) DeleteChat(
@@ -234,11 +344,12 @@ func (r *pgChatsRepo) DeleteChat(
 		chatID,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete chat: %v", err)
 		return fmt.Errorf("delete chat: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("delete chat: %w", ErrChatNotFound)
+		return ErrChatNotFound
 	}
 
 	return nil
@@ -255,6 +366,7 @@ func (r *pgChatsRepo) AddMember(
 		chatID, userID,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository add member: %v", err)
 		return fmt.Errorf("add member: %w", err)
 	}
 
@@ -273,11 +385,12 @@ func (r *pgChatsRepo) RemoveMember(
 		chatID, userID,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository remove member: %v", err)
 		return fmt.Errorf("remove member: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("remove member: %w", ErrChatMemberNotFound)
+		return ErrChatMemberNotFound
 	}
 
 	return nil

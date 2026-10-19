@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 
@@ -15,32 +16,41 @@ import (
 )
 
 func main() {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("[ERROR] load environment: %v", err)
+	}
 	ctx := context.Background()
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
 
 	if err := database.RunMigrations(os.Getenv("DATABASE_URL")); err != nil {
-		log.Fatalf("migrations: %v", err)
+		os.Exit(1)
 	}
 
 	pool, err := database.NewPool(ctx)
 	if err != nil {
-		log.Fatalf("db: %v", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	usersRepository := repository.NewUsersRepository(pool)
 	sessionRepository := repository.NewSessionRepository(pool)
+	chatsRepository := repository.NewChatsRepository(pool)
+
 	usersService := service.NewUsersService(usersRepository)
 	authService := service.NewAuthService(usersRepository, sessionRepository)
+	chatsService := service.NewChatsService(chatsRepository)
+
 	usersHandler := handler.NewUsersHandler(usersService)
 	authHandler := handler.NewAuthHandler(authService)
+	chatsHandler := handler.NewChatHandler(chatsService)
 	healthHandler := handler.NewHealthHandler(pool)
 
+	// health
 	r.GET("/health/live", healthHandler.HealthLive)
 	r.GET("/health/ready", healthHandler.HealthReady)
 
+	// auth
 	r.POST("/api/v1/auth/register", authHandler.AuthRegister)
 	r.POST("/api/v1/auth/login", authHandler.AuthLogin)
 	r.POST("/api/v1/auth/logout", authHandler.AuthLogout)
@@ -48,10 +58,20 @@ func main() {
 	api := r.Group("/api")
 	api.Use(middleware.Auth(authService))
 
+	// users
 	api.GET("/v1/users/me", usersHandler.GetSelf)
 	api.GET("/v1/users/:id", usersHandler.GetByID)
 	api.PATCH("/v1/users/me", usersHandler.Update)
 	api.DELETE("/v1/users/me", usersHandler.Delete)
+
+	// chats
+	api.GET("/v1/chats", chatsHandler.GetChats)
+	api.POST("/v1/chats", chatsHandler.CreateChat)
+	api.GET("/v1/chats/:id", chatsHandler.GetChatInfo)
+	api.PATCH("/v1/chats/:id", chatsHandler.PatchChat)
+	api.DELETE("/v1/chats/:id", chatsHandler.DeleteChat)
+	api.POST("/v1/chats/:id/members", chatsHandler.AddMember)
+	api.DELETE("/v1/chats/:id/members/:rid", chatsHandler.RemoveMember)
 
 	port := os.Getenv("PORT")
 	if port == "" {

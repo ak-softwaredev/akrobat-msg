@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/ak-softwaredev/akrobat-msg/internal/repository"
@@ -85,6 +86,7 @@ func (s *usersService) Update(
 			bcrypt.DefaultCost,
 		)
 		if err != nil {
+			log.Printf("[ERROR] service hash update password: %v", err)
 			return nil, fmt.Errorf("auth register: %w", err)
 		}
 

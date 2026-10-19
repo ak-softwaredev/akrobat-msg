@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
@@ -42,6 +43,7 @@ func (r *pgSessionRepo) Create(
 		p.TokenHash, p.UserID, p.ExpiresAt,
 	).Scan(&s.TokenHash, &s.UserID, &s.ExpiresAt)
 	if err != nil {
+		log.Printf("[ERROR] repository create session: %v", err)
 		return nil, fmt.Errorf("session create: %w", err)
 	}
 
@@ -64,6 +66,7 @@ func (r *pgSessionRepo) GetByHash(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("session get: %w", ErrSessionNotFound)
 		}
+		log.Printf("[ERROR] repository get session: %v", err)
 		return nil, fmt.Errorf("session get: %w", err)
 	}
 
@@ -83,6 +86,7 @@ func (r *pgSessionRepo) GetByUserID(
 		id,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository get sessions by user: %v", err)
 		return nil, fmt.Errorf("session get: %w", err)
 	}
 
@@ -101,6 +105,7 @@ func (r *pgSessionRepo) GetByUserID(
 		},
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository get sessions by user: %v", err)
 		return nil, fmt.Errorf("session get: %w", err)
 	}
 
@@ -117,6 +122,7 @@ func (r *pgSessionRepo) DeleteByHash(
 		tokenHash,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete session: %v", err)
 		return fmt.Errorf("session delete: %w", err)
 	}
 
@@ -137,6 +143,7 @@ func (r *pgSessionRepo) DeleteByUserID(
 		id,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete sessions by user: %v", err)
 		return fmt.Errorf("session delete: %w", err)
 	}
 
@@ -155,6 +162,7 @@ func (r *pgSessionRepo) DeleteExpired(
 		WHERE expires_at <= NOW()`,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete expired sessions: %v", err)
 		return fmt.Errorf("session delete: %w", err)
 	}
 

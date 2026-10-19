@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -54,6 +55,7 @@ func (r *pgUsersRepo) Register(
 			pgErr.ConstraintName == "users_username_key" {
 			return nil, ErrUserExists
 		}
+		log.Printf("[ERROR] repository register user: %v", err)
 		return nil, fmt.Errorf("register user: %w", err)
 	}
 	return &u, nil
@@ -74,6 +76,7 @@ func (r *pgUsersRepo) GetWithCredentialsByUsername(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("login user: %w", ErrUserNotFound)
 		}
+		log.Printf("[ERROR] repository get user credentials: %v", err)
 		return nil, fmt.Errorf("login user: %w", err)
 	}
 	return &u, nil
@@ -94,6 +97,7 @@ func (r *pgUsersRepo) GetByUsername(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
+		log.Printf("[ERROR] repository get user by username: %v", err)
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	return &u, nil
@@ -114,6 +118,7 @@ func (r *pgUsersRepo) GetByID(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
+		log.Printf("[ERROR] repository get user by id: %v", err)
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	return &u, nil
@@ -137,6 +142,7 @@ func (r *pgUsersRepo) UpdateUsername(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
+		log.Printf("[ERROR] repository update username: %v", err)
 		return nil, fmt.Errorf("update user: %w", err)
 	}
 
@@ -161,6 +167,7 @@ func (r *pgUsersRepo) UpdatePassword(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
+		log.Printf("[ERROR] repository update password: %v", err)
 		return nil, fmt.Errorf("update user: %w", err)
 	}
 
@@ -185,6 +192,7 @@ func (r *pgUsersRepo) UpdateBio(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
+		log.Printf("[ERROR] repository update bio: %v", err)
 		return nil, fmt.Errorf("update user: %w", err)
 	}
 
@@ -200,6 +208,7 @@ func (r *pgUsersRepo) Delete(
 		id,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete user: %v", err)
 		return fmt.Errorf("delete user: %w", err)
 	}
 

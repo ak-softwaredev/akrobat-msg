@@ -51,6 +51,7 @@ func (h *authHandler) AuthRegister(c *gin.Context) {
 
 	body := InputJSON{}
 	if err := c.ShouldBindJSON(&body); err != nil {
+		log.Printf("[ERROR] handler bind registration request: %v", err)
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid request body"}},
@@ -81,7 +82,6 @@ func (h *authHandler) AuthRegister(c *gin.Context) {
 			)
 			return
 		}
-		log.Printf("[ERROR] auth register: %v", err)
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": gin.H{"message": "Internal Server Error"}},
@@ -109,6 +109,7 @@ func (h *authHandler) AuthLogin(c *gin.Context) {
 
 	body := InputJSON{}
 	if err := c.ShouldBindJSON(&body); err != nil {
+		log.Printf("[ERROR] handler bind login request: %v", err)
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid request body"}},
@@ -132,7 +133,6 @@ func (h *authHandler) AuthLogin(c *gin.Context) {
 			)
 			return
 		}
-		log.Printf("[ERROR] auth login: %v", err)
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": gin.H{"message": "Internal Server Error"}},

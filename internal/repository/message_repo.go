@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/ak-softwaredev/akrobat-msg/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -53,6 +54,7 @@ func (r *pgMessagesRepo) GetChatMessages(
 		chatID, beforeID, limit,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository get messages: %v", err)
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
 
@@ -73,6 +75,7 @@ func (r *pgMessagesRepo) GetChatMessages(
 		},
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository get messages: %v", err)
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
 
@@ -107,6 +110,7 @@ func (r *pgMessagesRepo) CreateMessage(
 		&m.UpdatedAt,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository create message: %v", err)
 		return nil, fmt.Errorf("create message: %w", err)
 	}
 	return &m, nil
@@ -147,6 +151,7 @@ func (r *pgMessagesRepo) UpdateMessage(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("update message: %w", ErrMessageNotFound)
 		}
+		log.Printf("[ERROR] repository update message: %v", err)
 		return nil, fmt.Errorf("update message: %w", err)
 	}
 
@@ -167,6 +172,7 @@ func (r *pgMessagesRepo) DeleteMessage(
 		chatID, messageID, userID,
 	)
 	if err != nil {
+		log.Printf("[ERROR] repository delete message: %v", err)
 		return fmt.Errorf("delete message: %w", err)
 	}
 

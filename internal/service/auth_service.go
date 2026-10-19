@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 	"unicode/utf8"
 
@@ -61,6 +62,7 @@ func (s *authService) Register(
 		bcrypt.DefaultCost,
 	)
 	if err != nil {
+		log.Printf("[ERROR] service hash registration password: %v", err)
 		return nil, fmt.Errorf("auth register: %w", err)
 	}
 
@@ -91,6 +93,7 @@ func (s *authService) Register(
 		},
 	)
 	if err != nil {
+		log.Printf("[ERROR] service hash update password: %v", err)
 		return nil, fmt.Errorf("auth register: %w", err)
 	}
 
@@ -206,6 +209,7 @@ func validateAuthInput(username, password *string) error {
 func generateToken(length int) (string, error) {
 	buffer := make([]byte, length)
 	if _, err := rand.Read(buffer); err != nil {
+		log.Printf("[ERROR] service generate token: %v", err)
 		return "", fmt.Errorf("generate token: %w", err)
 	}
 	token := base64.RawURLEncoding.EncodeToString(buffer)
