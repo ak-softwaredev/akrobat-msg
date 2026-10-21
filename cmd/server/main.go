@@ -100,11 +100,7 @@ func main() {
 		port = ":8080"
 	}
 
-	if err := r.RunTLS(
-		port,
-		"certs/localhost.pem",
-		"certs/localhost-key.pem",
-	); err != nil {
+	if err := r.Run(port); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }

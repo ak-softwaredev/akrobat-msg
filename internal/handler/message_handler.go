@@ -3,10 +3,8 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"encoding/json"
 	"errors"
 	"log"
-	"math"
 	"net/http"
 	"strconv"
 
@@ -26,48 +24,21 @@ type MessagePublisher interface {
 	Publish(chatID int64, data []byte)
 }
 
-type MessagePublisher interface {
-	Publish(chatID int64, data []byte)
-}
-
 type messageHandler struct {
 	messages MessagesService
-	hub      MessagePublisher
 	hub      MessagePublisher
 }
 
 func NewMessagesHandler(
 	messages MessagesService,
 	hub MessagePublisher,
-	hub MessagePublisher,
 ) *messageHandler {
 	return &messageHandler{
 		messages: messages,
 		hub:      hub,
-		hub:      hub,
 	}
 }
 
-type messageEvent struct {
-	Type string `json:"type"`
-	Data any    `json:"data"`
-}
-
-func (h *messageHandler) publishEvent(
-	chatID int64,
-	eventType string,
-	data any,
-) {
-	payload, err := json.Marshal(messageEvent{
-		Type: eventType,
-		Data: data,
-	})
-	if err != nil {
-		log.Printf("[ERROR] marshal websocket event: %v", err)
-		return
-	}
-
-	h.hub.Publish(chatID, payload)
 type messageEvent struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
@@ -96,7 +67,6 @@ type MessageJSON struct {
 
 func (h *messageHandler) GetMessages(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
@@ -138,7 +108,6 @@ func (h *messageHandler) GetMessages(c *gin.Context) {
 
 func (h *messageHandler) PostMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
@@ -182,13 +151,11 @@ func (h *messageHandler) PostMessage(c *gin.Context) {
 func (h *messageHandler) UpdateMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
 	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
@@ -238,13 +205,11 @@ func (h *messageHandler) UpdateMessage(c *gin.Context) {
 func (h *messageHandler) DeleteMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
 	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
