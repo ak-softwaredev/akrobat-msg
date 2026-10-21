@@ -24,16 +24,21 @@ func main() {
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
 
+	log.Println("starting migrations")
 	if err := database.RunMigrations(os.Getenv("DATABASE_URL")); err != nil {
 		os.Exit(1)
 	}
+	log.Println("migrations complete")
 
+	log.Println("creating database pool")
 	pool, err := database.NewPool(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	log.Println("database pool ready")
 
+	log.Println("registering endpoints")
 	usersRepository := repository.NewUsersRepository(pool)
 	sessionRepository := repository.NewSessionRepository(pool)
 	chatsRepository := repository.NewChatsRepository(pool)
@@ -94,11 +99,13 @@ func main() {
 
 	// ws upgrade
 	chatsv1.GET("/:id/ws", hub.HandleChat)
+	log.Println("registering complete")
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = ":8080"
 	}
+	log.Printf("port: %s\n", port)
 
 	if err := r.Run(port); err != nil {
 		log.Fatalf("server: %v", err)

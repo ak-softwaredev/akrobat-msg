@@ -22,6 +22,8 @@ var upgrader = websocket.Upgrader{
 			"https://akrobat-msg.duckdns.org": true, // DNS
 		}
 
+		log.Printf("[DEBUG] websocket Origin=%q Host=%q", origin, r.Host)
+
 		return allowedOrigins[origin]
 	},
 }

@@ -64,6 +64,7 @@ function App() {
   const [memberId, setMemberId] = useState('')
   const socketRef = useRef<WebSocket | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const isAtBottomRef = useRef(true)
   const activeChat = chats.find((chat) => chat.id === activeChatId) || null
   const role = activeChat?.members.find((member) => member.user_id === user?.id)?.role
   const canManage = role === 'owner' || role === 'admin'
@@ -76,6 +77,14 @@ function App() {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(THEME_KEY, theme)
   }, [theme])
+
+  useEffect(() => {
+    isAtBottomRef.current = true
+  }, [activeChatId])
+
+  useEffect(() => {
+    if (isAtBottomRef.current) endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const themeToggle = <button className="theme-toggle" type="button" aria-pressed={theme === 'dark'} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}>
     <span aria-hidden="true">{theme === 'dark' ? '☼' : '☾'}</span><span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
@@ -213,7 +222,6 @@ function App() {
     try {
       const message = await request<Message>(`/api/v1/chats/${activeChatId}/messages`, token, { method: 'POST', body: JSON.stringify({ content }) })
       setMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message])
-      endRef.current?.scrollIntoView({ behavior: 'smooth' })
     } catch (cause) { setDraft(content); setError(cause instanceof Error ? cause.message : 'Message did not send.') }
   }
   const saveMessage = async (event: FormEvent<HTMLFormElement>, id: number) => {
@@ -338,7 +346,7 @@ function App() {
       {activeChat ? <>
         <header className="channel-header"><button className="icon-button mobile-menu" aria-label="Open chat list" onClick={() => setSidebarOpen(true)}>☰</button><span className="header-hash">#</span><div className="channel-heading"><h1>{activeChat.name}</h1><p>{activeChat.description || 'A little corner for your people.'}</p></div><div className="header-actions"><div className="member-stack" aria-label={`${activeChat.members.length} members`}>{activeChat.members.slice(0, 3).map((member, index) => { const name = member.user_id === user.id ? user.username : memberUsers[member.user_id]?.username || `User ${member.user_id}`; return <span key={member.user_id} className={`avatar mini-avatar hue-${index % 4}`} title={name}>{initials(name)}</span> })}</div><span className="member-count">{activeChat.members.length}</span><button className="icon-button channel-settings" title="Chat settings and members" aria-label="Chat settings and members" onClick={() => { setError(''); setChatName(activeChat.name); setChatDescription(activeChat.description || ''); setDialog('settings') }}>···</button></div></header>
         {notice && <div className="notice-bar"><span className="live-dot" />{notice}<button aria-label="Dismiss notice" onClick={() => setNotice('')}>×</button></div>}{error && <div className="error-bar" role="alert"><span>!</span>{error}<button aria-label="Dismiss error" onClick={() => setError('')}>×</button></div>}
-        <div className="messages-scroll"><div className="welcome-block"><span className="welcome-icon">#</span><span className="eyebrow">YOU MADE IT</span><h2>Welcome to {activeChat.name}</h2><p>This is the beginning of this little space.</p></div>
+        <div className="messages-scroll" onScroll={(event) => { const element = event.currentTarget; isAtBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= 40 }}><div className="welcome-block"><span className="welcome-icon">#</span><span className="eyebrow">YOU MADE IT</span><h2>Welcome to {activeChat.name}</h2><p>This is the beginning of this little space.</p></div>
           {hasOlder && <button className="load-older" disabled={loadingMessages} onClick={() => void loadOlder()}>{loadingMessages ? 'Loading…' : '↑  Load earlier messages'}</button>}
           {messages.map((message, index) => { const sender = message.sender_id === user.id ? user : message.sender_id ? memberUsers[message.sender_id] : undefined; const previous = messages[index - 1]; const showDay = !previous || new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString(); const grouped = previous?.sender_id === message.sender_id && !showDay && new Date(message.created_at).getTime() - new Date(previous.created_at).getTime() < 300000
             return <div key={message.id}>{showDay && <div className="day-divider"><span>{dayLabel(message.created_at)}</span></div>}<article className={`message-row ${grouped ? 'message-grouped' : ''}`}>
