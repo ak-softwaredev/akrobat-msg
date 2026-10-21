@@ -42,29 +42,30 @@ type MessageJSON struct {
 
 func (h *messageHandler) GetMessages(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
-	body := GetMessagesJSON{}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		log.Printf("[ERROR] handler bind get messages request: %v", err)
+	beforeID, err := strconv.ParseInt(c.Query("beforeID"), 10, 0)
+	if err != nil {
 		c.JSON(http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "invalid json"}})
-		return
+			gin.H{"error": gin.H{"message": "Invaild BeforeID"}})
+	}
+	limit, err := strconv.Atoi(c.Query("limit"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invaild BeforeID"}})
 	}
 
 	messages, err := h.messages.GetMessages(
 		c.Request.Context(),
 		chatID,
 		userID,
-		body.BeforeID,
-		body.Limit,
+		beforeID,
+		limit,
 	)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) ||
@@ -83,12 +84,10 @@ func (h *messageHandler) GetMessages(c *gin.Context) {
 
 func (h *messageHandler) PostMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
@@ -123,20 +122,16 @@ func (h *messageHandler) PostMessage(c *gin.Context) {
 
 func (h *messageHandler) UpdateMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	stringMessageID := c.Param("mid")
-	messageID, err := strconv.ParseInt(stringMessageID, 10, 0)
+	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse message id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "MessageID not a number"}})
 		return
 	}
 
@@ -177,20 +172,16 @@ func (h *messageHandler) UpdateMessage(c *gin.Context) {
 
 func (h *messageHandler) DeleteMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	stringMessageID := c.Param("mid")
-	messageID, err := strconv.ParseInt(stringMessageID, 10, 0)
+	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse message id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "MessageID not a number"}})
 		return
 	}
 

@@ -87,12 +87,10 @@ func (h *chatHandler) GetChats(c *gin.Context) {
 
 func (h *chatHandler) GetChatInfo(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
@@ -120,12 +118,10 @@ func (h *chatHandler) PatchChat(c *gin.Context) {
 	)
 
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
@@ -159,12 +155,10 @@ func (h *chatHandler) PatchChat(c *gin.Context) {
 
 func (h *chatHandler) DeleteChat(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
@@ -192,12 +186,10 @@ func (h *chatHandler) AddMember(c *gin.Context) {
 	)
 
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
@@ -227,20 +219,16 @@ func (h *chatHandler) AddMember(c *gin.Context) {
 
 func (h *chatHandler) RemoveMember(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	stringChatID := c.Param("id")
-	chatID, err := strconv.ParseInt(stringChatID, 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse chat id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	stringRemovedID := c.Param("rid")
-	removedID, err := strconv.ParseInt(stringRemovedID, 10, 0)
+	removedID, err := strconv.ParseInt(c.Param("rid"), 10, 0)
 	if err != nil {
-		log.Printf("[ERROR] handler parse removed user id: %v", err)
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"error": gin.H{"message": "Internal Server Error"}})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": gin.H{"message": "RemovedID not a number"}})
 		return
 	}
 
@@ -259,13 +247,3 @@ func (h *chatHandler) RemoveMember(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
-
-/*
-[-] POST /api/v1/chats <- name
-[-] GET /api/v1/chats -> all chats
-[-] GET /api/v1/chats/:id -> chat details
-[-] PATCH /api/v1/chats/:id <- name, description
-[-] DELETE /api/v1/chats/:id -> nil
-[-] POST /api/v1/chats/:id/members <- userid
-[-] DELETE /api/v1/chats/:id/members/:id -> nil
-*/
