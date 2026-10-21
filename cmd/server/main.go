@@ -36,14 +36,17 @@ func main() {
 	usersRepository := repository.NewUsersRepository(pool)
 	sessionRepository := repository.NewSessionRepository(pool)
 	chatsRepository := repository.NewChatsRepository(pool)
+	messagesRepository := repository.NewMessagesRepository(pool)
 
 	usersService := service.NewUsersService(usersRepository)
 	authService := service.NewAuthService(usersRepository, sessionRepository)
 	chatsService := service.NewChatsService(chatsRepository)
+	messagesService := service.NewMessageService(chatsRepository, messagesRepository)
 
 	usersHandler := handler.NewUsersHandler(usersService)
 	authHandler := handler.NewAuthHandler(authService)
 	chatsHandler := handler.NewChatHandler(chatsService)
+	messagesHandler := handler.NewMessagesHandler(messagesService)
 	healthHandler := handler.NewHealthHandler(pool)
 
 	// health
@@ -72,6 +75,12 @@ func main() {
 	api.DELETE("/v1/chats/:id", chatsHandler.DeleteChat)
 	api.POST("/v1/chats/:id/members", chatsHandler.AddMember)
 	api.DELETE("/v1/chats/:id/members/:rid", chatsHandler.RemoveMember)
+
+	// messages
+	api.GET("/v1/chats/:id/messages", messagesHandler.GetMessages)
+	api.POST("/v1/chats/:id/messages", messagesHandler.PostMessage)
+	api.PATCH("/v1/chats/:id/messages/:mid", messagesHandler.UpdateMessage)
+	api.DELETE("/v1/chats/:id/messages/:mid", messagesHandler.DeleteMessage)
 
 	port := os.Getenv("PORT")
 	if port == "" {

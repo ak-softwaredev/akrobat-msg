@@ -89,7 +89,7 @@ func (s *authService) Register(
 		repository.CreateSessionParams{
 			TokenHash: tokenHash,
 			UserID:    user.ID,
-			ExpiresAt: time.Now().Add(time.Hour),
+			ExpiresAt: time.Now().Add(time.Hour * (24 * 7)),
 		},
 	)
 	if err != nil {

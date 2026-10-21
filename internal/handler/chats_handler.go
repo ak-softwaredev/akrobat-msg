@@ -98,7 +98,8 @@ func (h *chatHandler) GetChatInfo(c *gin.Context) {
 
 	chat, err := h.chats.GetChatDetails(c.Request.Context(), chatID, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) ||
+			errors.Is(err, service.ErrInsufficientPermissions) {
 			c.JSON(http.StatusUnauthorized,
 				gin.H{"error": gin.H{"message": "Insufficient Permissions"}})
 			return
@@ -142,7 +143,8 @@ func (h *chatHandler) PatchChat(c *gin.Context) {
 		body.Field, body.Value,
 	)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) ||
+			errors.Is(err, service.ErrInsufficientPermissions) {
 			c.JSON(http.StatusUnauthorized,
 				gin.H{"error": gin.H{"message": "Insufficient Permissions"}})
 			return
@@ -168,7 +170,8 @@ func (h *chatHandler) DeleteChat(c *gin.Context) {
 
 	err = h.chats.DeleteChat(c.Request.Context(), chatID, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) ||
+			errors.Is(err, service.ErrInsufficientPermissions) {
 			c.JSON(http.StatusUnauthorized,
 				gin.H{"error": gin.H{"message": "Insufficient Permissions"}})
 			return
@@ -208,7 +211,8 @@ func (h *chatHandler) AddMember(c *gin.Context) {
 
 	err = h.chats.AddMember(c.Request.Context(), chatID, userID, body.UserID)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) ||
+			errors.Is(err, service.ErrInsufficientPermissions) {
 			c.JSON(http.StatusUnauthorized,
 				gin.H{"error": gin.H{"message": "Insufficient Permissions"}})
 			return
@@ -242,7 +246,8 @@ func (h *chatHandler) RemoveMember(c *gin.Context) {
 
 	err = h.chats.RemoveMember(c.Request.Context(), chatID, userID, removedID)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) ||
+			errors.Is(err, service.ErrInsufficientPermissions) {
 			c.JSON(http.StatusUnauthorized,
 				gin.H{"error": gin.H{"message": "Insufficient Permissions"}})
 			return

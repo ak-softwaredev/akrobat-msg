@@ -119,8 +119,8 @@ func (r *pgMessagesRepo) CreateMessage(
 func (r *pgMessagesRepo) UpdateMessage(
 	ctx context.Context,
 	chatID int64,
-	messageID int64,
 	userID int64,
+	messageID int64,
 	content string,
 ) (*model.Message, error) {
 	var m model.Message
@@ -161,8 +161,8 @@ func (r *pgMessagesRepo) UpdateMessage(
 func (r *pgMessagesRepo) DeleteMessage(
 	ctx context.Context,
 	chatID int64,
-	messageID int64,
 	userID int64,
+	messageID int64,
 ) error {
 	tag, err := r.pool.Exec(ctx,
 		`DELETE FROM messages
