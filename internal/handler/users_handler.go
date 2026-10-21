@@ -58,7 +58,7 @@ func (h *usersHandler) GetSelf(c *gin.Context) {
 }
 
 func (h *usersHandler) GetByID(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid UserID"}})

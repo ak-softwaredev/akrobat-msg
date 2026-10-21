@@ -87,7 +87,7 @@ func (h *chatHandler) GetChats(c *gin.Context) {
 
 func (h *chatHandler) GetChatInfo(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
@@ -118,7 +118,7 @@ func (h *chatHandler) PatchChat(c *gin.Context) {
 	)
 
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
@@ -155,7 +155,7 @@ func (h *chatHandler) PatchChat(c *gin.Context) {
 
 func (h *chatHandler) DeleteChat(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
@@ -186,7 +186,7 @@ func (h *chatHandler) AddMember(c *gin.Context) {
 	)
 
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
@@ -219,13 +219,13 @@ func (h *chatHandler) AddMember(c *gin.Context) {
 
 func (h *chatHandler) RemoveMember(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	removedID, err := strconv.ParseInt(c.Param("rid"), 10, 0)
+	removedID, err := strconv.ParseInt(c.Param("rid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "RemovedID not a number"}})

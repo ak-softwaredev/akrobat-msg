@@ -11,6 +11,7 @@ import (
 	"github.com/ak-softwaredev/akrobat-msg/internal/middleware"
 	"github.com/ak-softwaredev/akrobat-msg/internal/repository"
 	"github.com/ak-softwaredev/akrobat-msg/internal/service"
+	"github.com/ak-softwaredev/akrobat-msg/internal/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -43,10 +44,13 @@ func main() {
 	chatsService := service.NewChatsService(chatsRepository)
 	messagesService := service.NewMessageService(chatsRepository, messagesRepository)
 
+	hub := ws.NewHub()
+	go hub.Run()
+
 	usersHandler := handler.NewUsersHandler(usersService)
 	authHandler := handler.NewAuthHandler(authService)
 	chatsHandler := handler.NewChatHandler(chatsService)
-	messagesHandler := handler.NewMessagesHandler(messagesService)
+	messagesHandler := handler.NewMessagesHandler(messagesService, hub)
 	healthHandler := handler.NewHealthHandler(pool)
 
 	// health
@@ -67,20 +71,29 @@ func main() {
 	api.PATCH("/v1/users/me", usersHandler.Update)
 	api.DELETE("/v1/users/me", usersHandler.Delete)
 
+	chatsv1 := r.Group("/api/v1/chats")
+	chatsv1.Use(
+		middleware.Auth(authService),
+		middleware.CheckUserInChat(chatsService),
+	)
+
 	// chats
 	api.GET("/v1/chats", chatsHandler.GetChats)
 	api.POST("/v1/chats", chatsHandler.CreateChat)
-	api.GET("/v1/chats/:id", chatsHandler.GetChatInfo)
-	api.PATCH("/v1/chats/:id", chatsHandler.PatchChat)
-	api.DELETE("/v1/chats/:id", chatsHandler.DeleteChat)
-	api.POST("/v1/chats/:id/members", chatsHandler.AddMember)
-	api.DELETE("/v1/chats/:id/members/:rid", chatsHandler.RemoveMember)
+	chatsv1.GET("/:id", chatsHandler.GetChatInfo)
+	chatsv1.PATCH("/:id", chatsHandler.PatchChat)
+	chatsv1.DELETE("/:id", chatsHandler.DeleteChat)
+	chatsv1.POST("/:id/members", chatsHandler.AddMember)
+	chatsv1.DELETE("/:id/members/:rid", chatsHandler.RemoveMember)
 
 	// messages
-	api.GET("/v1/chats/:id/messages", messagesHandler.GetMessages)
-	api.POST("/v1/chats/:id/messages", messagesHandler.PostMessage)
-	api.PATCH("/v1/chats/:id/messages/:mid", messagesHandler.UpdateMessage)
-	api.DELETE("/v1/chats/:id/messages/:mid", messagesHandler.DeleteMessage)
+	chatsv1.GET("/:id/messages", messagesHandler.GetMessages)
+	chatsv1.POST("/:id/messages", messagesHandler.PostMessage)
+	chatsv1.PATCH("/:id/messages/:mid", messagesHandler.UpdateMessage)
+	chatsv1.DELETE("/:id/messages/:mid", messagesHandler.DeleteMessage)
+
+	// ws upgrade
+	chatsv1.GET("/:id/ws", hub.HandleChat)
 
 	port := os.Getenv("PORT")
 	if port == "" {

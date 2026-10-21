@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -19,21 +20,45 @@ type MessagesService interface {
 	DeleteMessage(ctx context.Context, chatID, userID, messageID int64) error
 }
 
+type MessagePublisher interface {
+	Publish(chatID int64, data []byte)
+}
+
 type messageHandler struct {
 	messages MessagesService
+	hub      MessagePublisher
 }
 
 func NewMessagesHandler(
 	messages MessagesService,
+	hub MessagePublisher,
 ) *messageHandler {
 	return &messageHandler{
 		messages: messages,
+		hub:      hub,
 	}
 }
 
-type GetMessagesJSON struct {
-	BeforeID int64 `json:"before_id"`
-	Limit    int   `json:"limit"`
+type messageEvent struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
+}
+
+func (h *messageHandler) publishEvent(
+	chatID int64,
+	eventType string,
+	data any,
+) {
+	payload, err := json.Marshal(messageEvent{
+		Type: eventType,
+		Data: data,
+	})
+	if err != nil {
+		log.Printf("[ERROR] marshal websocket event: %v", err)
+		return
+	}
+
+	h.hub.Publish(chatID, payload)
 }
 
 type MessageJSON struct {
@@ -42,22 +67,20 @@ type MessageJSON struct {
 
 func (h *messageHandler) GetMessages(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
 
-	beforeID, err := strconv.ParseInt(c.Query("beforeID"), 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "Invaild BeforeID"}})
+	beforeID, err := strconv.ParseInt(c.Query("beforeID"), 10, 64)
+	if err != nil || beforeID <= 0 {
+		beforeID = 0
 	}
 	limit, err := strconv.Atoi(c.Query("limit"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest,
-			gin.H{"error": gin.H{"message": "Invaild BeforeID"}})
+		limit = 50
 	}
 
 	messages, err := h.messages.GetMessages(
@@ -84,7 +107,7 @@ func (h *messageHandler) GetMessages(c *gin.Context) {
 
 func (h *messageHandler) PostMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
@@ -117,18 +140,20 @@ func (h *messageHandler) PostMessage(c *gin.Context) {
 		return
 	}
 
+	h.publishEvent(chatID, "message.created", message)
+
 	c.JSON(http.StatusCreated, message)
 }
 
 func (h *messageHandler) UpdateMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 0)
+	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "MessageID not a number"}})
@@ -167,18 +192,20 @@ func (h *messageHandler) UpdateMessage(c *gin.Context) {
 		return
 	}
 
+	h.publishEvent(chatID, "message.updated", message)
+
 	c.JSON(http.StatusOK, message)
 }
 
 func (h *messageHandler) DeleteMessage(c *gin.Context) {
 	userID := c.GetInt64("userID")
-	chatID, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	chatID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "Invalid ChatID"}})
 		return
 	}
-	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 0)
+	messageID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest,
 			gin.H{"error": gin.H{"message": "MessageID not a number"}})
@@ -207,6 +234,11 @@ func (h *messageHandler) DeleteMessage(c *gin.Context) {
 			gin.H{"error": gin.H{"message": "Internal Server Error"}})
 		return
 	}
+
+	h.publishEvent(chatID, "message.deleted", gin.H{
+		"id":      messageID,
+		"chat_id": chatID,
+	})
 
 	c.Status(http.StatusNoContent)
 }

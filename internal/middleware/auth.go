@@ -19,8 +19,10 @@ type AuthService interface {
 func Auth(s AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
-
 		token = strings.TrimPrefix(token, "Bearer ")
+		if token == "" && strings.HasSuffix(c.Request.URL.Path, "/ws") {
+			token = c.Query("token")
+		}
 
 		userID, err := s.Authenticate(
 			c.Request.Context(),
