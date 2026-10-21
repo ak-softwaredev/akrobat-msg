@@ -26,3 +26,4 @@ dist-ssr
 .env
 bin
 certs
+*.tar

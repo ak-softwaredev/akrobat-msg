@@ -16,8 +16,10 @@ var upgrader = websocket.Upgrader{
 		origin := r.Header.Get("Origin")
 
 		allowedOrigins := map[string]bool{
-			"http://localhost:5173": true, // Vite Dev Server
-			"https://31.76.72.210":  true, // Throwaway VPS, dont care 'bout it really
+			"http://localhost:5173":           true, // Vite Dev Server
+			"http://localhost:8080":           true, // Docker Up Server
+			"https://178.253.45.137":          true, // Throwaway VPS, dont care 'bout it really
+			"https://akrobat-msg.duckdns.org": true, // DNS
 		}
 
 		return allowedOrigins[origin]

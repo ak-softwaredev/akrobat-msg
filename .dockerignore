@@ -1,1 +1,8 @@
+
 .env
+.git
+.vscode
+certs/
+bin/
+**/node_modules/
+**/dist/
