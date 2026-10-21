@@ -211,3 +211,19 @@ func (s *chatsService) RemoveMember(
 
 	return nil
 }
+
+func (s *chatsService) IsUserInChat(
+	ctx context.Context,
+	chatID,
+	userID int64,
+) (bool, error) {
+	_, err := s.chats.GetRoleInChat(ctx, chatID, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrChatMemberNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
