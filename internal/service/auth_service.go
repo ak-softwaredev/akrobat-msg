@@ -141,7 +141,7 @@ func (s *authService) Login(
 		repository.CreateSessionParams{
 			TokenHash: string(tokenHash),
 			UserID:    user.ID,
-			ExpiresAt: time.Now().Add(time.Hour),
+			ExpiresAt: time.Now().Add(time.Hour * (24 * 7)),
 		},
 	)
 	if err != nil {
